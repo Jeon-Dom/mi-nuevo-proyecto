@@ -18,7 +18,8 @@ services:
         - "traefik.http.routers.domenica-password-router.entrypoints=http"
         - "traefik.http.routers.domenica-password-router.rule=Host(`password.byronrm.com`)"
         - "traefik.http.middlewares.domenica-password-redirect.redirectscheme.scheme=https"
-        - "traefik.http.routers.domenica-currency-router.middlewares=domenica-password-redirect"
+        # CORREGIDO: Ahora el router coincide perfectamente con el de arriba
+        - "traefik.http.routers.domenica-password-router.middlewares=domenica-password-redirect"
         
         - "traefik.http.routers.domenica-password-secure.entrypoints=https"
         - "traefik.http.routers.domenica-password-secure.rule=Host(`password.byronrm.com`)"
