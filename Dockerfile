@@ -1,12 +1,16 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Instalar Flask directamente (evita necesitar un requirements.txt para algo tan simple)
-RUN pip install --no-cache-dir Flask
+# Copia primero los requerimientos para aprovechar la caché de Docker
+COPY requirements.txt .
 
-COPY app.py .
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copia el resto del código de la aplicación (app.py)
+COPY . .
+
+# Expone el puerto interno que usa Flask
 EXPOSE 5000
 
 CMD ["python", "app.py"]
