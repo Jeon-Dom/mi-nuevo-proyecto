@@ -1,0 +1,67 @@
+name: Deploy Web App
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar Código
+        uses: actions/checkout@v4
+
+      # Convierte de manera automática todo el nombre a minúsculas para evitar errores de GHCR
+      - name: Configurar Variables de Entorno
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+
+      - name: Login en GitHub Container Registry
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Construir y Publicar Imagen Docker
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }} .
+          docker push ${{ env.IMAGE_NAME }}
+
+      # Enviamos el stack.yml modificado al servidor de destino
+      - name: Transferir stack.yml al VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          source: "stack.yml"
+          target: "/home/${{ secrets.VPS_USER }}/nueva-app"
+
+      - name: Desplegar en Docker Swarm vía SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          command_timeout: 10m
+          script: |
+            cd /home/${{ secrets.VPS_USER }}/nueva-app
+            
+            echo "==> Autenticando Docker en el VPS..."
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            echo "==> Descargando última versión de la imagen..."
+            # Forzamos la descarga del "latest" para refrescar el contenido
+            docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest | tr '[:upper:]' '[:lower:]'
+            
+            echo "==> Lanzando el servicio en la web..."
+            docker stack deploy -c stack.yml nueva_web_app
+            
+            echo "==> Estado actual del despliegue:"
+            docker service ls

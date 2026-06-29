@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web-app:
+    # RECUERDA: Cambia 'tu-usuario-github' y 'tu-nuevo-repo' por tus datos reales en minúsculas
+    image: ghcr.io/tu-usuario-github/tu-nuevo-repo:latest
+    networks:
+      - traefik-public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.mi-nueva-app.entrypoints=http"
+        - "traefik.http.routers.mi-nueva-app.rule=Host(`domenica.byronrm.com`)"
+        - "traefik.http.middlewares.mi-nueva-app-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.routers.mi-nueva-app.middlewares=mi-nueva-app-https-redirect"
+        - "traefik.http.routers.mi-nueva-app-secure.entrypoints=https"
+        - "traefik.http.routers.mi-nueva-app-secure.rule=Host(`domenica.byronrm.com`)"
+        - "traefik.http.routers.mi-nueva-app-secure.tls=true"
+        - "traefik.http.routers.mi-nueva-app-secure.tls.certresolver=http"
+        - "traefik.http.routers.mi-nueva-app-secure.service=mi-nueva-app"
+        - "traefik.http.services.mi-nueva-app.loadbalancer.server.port=5000"
+        - "traefik.docker.network=traefik-public"
+
+networks:
+  traefik-public:
+    external: true
