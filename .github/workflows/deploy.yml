@@ -17,21 +17,23 @@ jobs:
       - name: Descargar Código
         uses: actions/checkout@v4
 
-      # Convierte de manera automática todo el nombre a minúsculas para evitar errores de GHCR
-      - name: Configurar Variables de Entorno
-        run: |
-          echo "IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
-
       - name: Login en GitHub Container Registry
         run: |
           echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+      # Usamos ASIGNACIÓN DIRECTA en minúsculas usando funciones de GitHub
       - name: Construir y Publicar Imagen Docker
         run: |
-          docker build -t ${{ env.IMAGE_NAME }} .
-          docker push ${{ env.IMAGE_NAME }}
+          # Convertimos a minúsculas usando Bash de forma segura
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME="ghcr.io/${REPO_LOWER}:latest"
+          
+          echo "Construyendo imagen: $IMAGE_NAME"
+          docker build -t $IMAGE_NAME .
+          
+          echo "Publicando imagen..."
+          docker push $IMAGE_NAME
 
-      # Enviamos el stack.yml modificado al servidor de destino
       - name: Transferir stack.yml al VPS
         uses: appleboy/scp-action@v1
         with:
@@ -57,8 +59,8 @@ jobs:
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             echo "==> Descargando última versión de la imagen..."
-            # Forzamos la descarga del "latest" para refrescar el contenido
-            docker pull ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest | tr '[:upper:]' '[:lower:]'
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            docker pull ghcr.io/${REPO_LOWER}:latest
             
             echo "==> Lanzando el servicio en la web..."
             docker stack deploy -c stack.yml nueva_web_app
